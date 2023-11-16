@@ -1,0 +1,100 @@
+[
+    {
+        "$addFields": {
+            "start_Date": "2022-10-01T00:00:00",
+            "end_Date":  "2022-11-30T23:59:00",
+            "group_type": "day"
+        }
+    }, {
+    "$match": {
+        "dt": {
+            "$gte": "2022-10-01T00:00:00",
+            "$lte": "2022-11-30T23:59:00"
+        }
+    }
+}, {
+    "$addFields": {
+        "dt": {
+            "$dateFromParts": {
+                "year": {
+                    "$year": "$dt"
+                },
+                "month": {
+                    "$month": "$dt"
+                },
+                "day": {
+                    "$dayOfMonth": "$dt"
+                }
+            }
+        },
+        "dateRange": {
+            "$map": {
+                "input": {
+                    "$range": [
+                        0, {
+                            "$subtract": [
+                                "$end_Date", "$start_Date"
+                            ]
+                        }, 86400000
+                    ]
+                },
+                "in": {
+                    "$add": [
+                        "$start_Date", "$$this"
+                    ]
+                }
+            }
+        }
+    }
+}, {
+    "$unwind": "$dateRange"
+}, {
+    "$group": {
+        "_id": {
+            "dt": "$dateRange",
+            "value": "$value"
+        },
+        "count": {
+            "$sum": {
+                "$cond": [
+                    {
+                        "$eq": [
+                            "$dateRange", "$dt"
+                        ]
+                    }, {
+                        "$sum": "$value"
+                    }, 0
+                ]
+            }
+        }
+    }
+}, {
+    "$group": {
+        "_id": "$_id.dt",
+        "totalSum": {
+            "$sum": "$count"
+        }
+    }
+}, {
+    "$sort": {
+        "_id": 1
+    }
+}, {
+    "$group": {
+        "_id": null,
+        "labels": {
+            "$push": {
+                "$dateToString": {
+                    "format": "%Y-%m-%dT%H:%M:%S",
+                    "date": "$_id"
+                }
+            }
+        },
+        "dataset": {
+            "$push": "$totalSum"
+        }
+    }
+}, {
+    "$unset": "_id"
+}
+]

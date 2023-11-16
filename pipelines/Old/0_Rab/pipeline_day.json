@@ -1,0 +1,41 @@
+[
+    {
+        "$match": {
+            "dt": {
+                "$gte": "datetime(2022, 10, 1, 0, 0, 0, tzinfo=timezone.utc)",
+                "$lte": "datetime(2022, 10, 6, 23, 59, 0, tzinfo=timezone.utc)"
+            }
+        }
+    },
+    {
+        "$group": {
+            "_id": {
+                "$dateToString": {
+                    "format": "%Y-%m-%dT00:00:00",
+                    "date": "$dt"
+                }
+            },
+            "totalSum": {
+                "$sum": "$value"
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id": 1
+        }
+    }, {
+    "$group": {
+        "_id": "None",
+        "labels": {
+            "$push": "$_id"
+        },
+        "dataset": {
+            "$push": "$totalSum"
+        }
+    }
+},
+    {
+        "$unset": "_id"
+    }
+]

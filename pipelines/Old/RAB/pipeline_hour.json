@@ -1,0 +1,150 @@
+[
+    {
+        "$match": {
+            "dt": {
+                "$gte": "datetime(2022, 2, 1, 0, 0, 0, tzinfo=timezone.utc)",
+                "$lte": "datetime(2022, 2, 2, 0, 0, 0, tzinfo=timezone.utc)"
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "start_Date": "datetime(2022, 2, 1, 0, 0, 0, tzinfo=timezone.utc)",
+            "end_Date": "datetime(2022, 2, 2, 0, 0, 0, tzinfo=timezone.utc)"
+        }
+    },
+    {
+        "$addFields": {
+            "hours_diff": {
+                "$round": [
+                    {
+                        "$add": [
+                            {
+                                "$trunc": [
+                                    {
+                                        "$divide": [
+                                            {
+                                                "$subtract": [
+                                                    "$end_Date",
+                                                    "$start_Date"
+                                                ]
+                                            },
+                                            3600000
+                                        ]
+                                    },
+                                    0
+                                ]
+                            },
+                            1
+                        ]
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "dt": {
+                "$dateFromParts": {
+                    "year": {
+                        "$year": "$dt"
+                    },
+                    "month": {
+                        "$month": "$dt"
+                    },
+                    "day": {
+                        "$dayOfMonth": "$dt"
+                    },
+                    "hour": {
+                        "$hour": "$dt"
+                    }
+                }
+            },
+            "dateRange": {
+                "$map": {
+                    "input": {
+                        "$range": [
+                            0,
+                            {
+                                "$add": [
+                                    "$hours_diff"
+                                ]
+                            }
+                        ]
+                    },
+                    "as": "dd",
+                    "in": {
+                        "$add": [
+                            "$start_Date",
+                            {
+                                "$multiply": [
+                                    "$$dd",
+                                    3600000
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$unwind": "$dateRange"
+    },
+    {
+        "$group": {
+            "_id": {
+                "dt": "$dateRange",
+                "value": "$value"
+            },
+            "total": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$dateRange",
+                                "$dt"
+                            ]
+                        },
+                        {
+                            "$sum": "$value"
+                        },
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "$group": {
+            "_id": "$_id.dt",
+            "totalSum": {
+                "$sum": "$total"
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id": 1
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "labels": {
+                "$push": {
+                    "$dateToString": {
+                        "format": "%Y-%m-%dT%H:%M:%S",
+                        "date": "$_id"
+                    }
+                }
+            },
+            "dataset": {
+                "$push": "$totalSum"
+            }
+        }
+    },
+    {
+        "$unset": "_id"
+    }
+]

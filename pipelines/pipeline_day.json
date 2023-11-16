@@ -1,0 +1,147 @@
+[
+    {
+        "$match": {
+            "dt": {
+                "$gte": "datetime(2022, 10, 1, 0, 0, 0, tzinfo=timezone.utc)",
+                "$lte": "datetime(2022, 11, 30, 23, 59, 0, tzinfo=timezone.utc)"
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "start_Date": "datetime(2022, 10, 1, 0, 0, 0, tzinfo=timezone.utc)",
+            "end_Date": "datetime(2022, 11, 30, 23, 59, 0, tzinfo=timezone.utc)"
+        }
+    },
+    {
+        "$addFields": {
+            "days_diff": {
+                "$round": [
+                    {
+                        "$add": [
+                            {
+                                "$trunc": [
+                                    {
+                                        "$divide": [
+                                            {
+                                                "$subtract": [
+                                                    "$end_Date",
+                                                    "$start_Date"
+                                                ]
+                                            },
+                                            86400000
+                                        ]
+                                    },
+                                    0
+                                ]
+                            },
+                            1
+                        ]
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "dt": {
+                "$dateFromParts": {
+                    "year": {
+                        "$year": "$dt"
+                    },
+                    "month": {
+                        "$month": "$dt"
+                    },
+                    "day": {
+                        "$dayOfMonth": "$dt"
+                    }
+                }
+            },
+            "dateRange": {
+                "$map": {
+                    "input": {
+                        "$range": [
+                            0,
+                            {
+                                "$add": [
+                                    "$days_diff"
+                                ]
+                            }
+                        ]
+                    },
+                    "as": "dd",
+                    "in": {
+                        "$add": [
+                            "$start_Date",
+                            {
+                                "$multiply": [
+                                    "$$dd",
+                                    86400000
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$unwind": "$dateRange"
+    },
+    {
+        "$group": {
+            "_id": {
+                "dt": "$dateRange",
+                "value": "$value"
+            },
+            "total": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$dateRange",
+                                "$dt"
+                            ]
+                        },
+                        {
+                            "$sum": "$value"
+                        },
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "$group": {
+            "_id": "$_id.dt",
+            "totalSum": {
+                "$sum": "$total"
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id": 1
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "dataset": {
+                "$push": "$totalSum"
+            },
+            "labels": {
+                "$push": {
+                    "$dateToString": {
+                        "format": "%Y-%m-%dT%H:%M:%S",
+                        "date": "$_id"
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$unset": "_id"
+    }
+]

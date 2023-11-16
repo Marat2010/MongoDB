@@ -1,0 +1,137 @@
+[
+    {
+    "$addFields": {
+        "start_Date": "datetime(2022, 10, 1, 0, 0, 0, tzinfo=timezone.utc)",
+        "end_Date": "datetime(2022, 11, 30, 23, 59, 0, tzinfo=timezone.utc)"
+    }
+    },
+    {
+        "$match": {
+            "dt": {
+                "$gte": "$$start_Date",
+                "$lte": "$$end_Date"
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "days_diff": {
+                "$subtract": [
+                    {
+                        "$add": [
+                            {
+                                "$dayOfYear": "$end_Date"
+                            },
+                            1
+                        ]
+                    },
+                    {
+                        "$dayOfYear": "$start_Date"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "dt": {
+                "$dateFromParts": {
+                    "year": {
+                        "$year": "$dt"
+                    },
+                    "month": {
+                        "$month": "$dt"
+                    },
+                    "day": {
+                        "$dayOfMonth": "$dt"
+                    }
+                }
+            },
+            "dateRange": {
+                "$map": {
+                    "input": {
+                        "$range": [
+                            0,
+                            {
+                                "$add": [
+                                    "$days_diff"
+                                ]
+                            }
+                        ]
+                    },
+                    "as": "dd",
+                    "in": {
+                        "$add": [
+                            "$start_Date",
+                            {
+                                "$multiply": [
+                                    "$$dd",
+                                    86400000
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    {
+        "$unwind": "$dateRange"
+    },
+    {
+        "$group": {
+            "_id": {
+                "dt": "$dateRange",
+                "value": "$value"
+            },
+            "total": {
+                "$sum": {
+                    "$cond": [
+                        {
+                            "$eq": [
+                                "$dateRange",
+                                "$dt"
+                            ]
+                        },
+                        {
+                            "$sum": "$value"
+                        },
+                        0
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "$group": {
+            "_id": "$_id.dt",
+            "totalSum": {
+                "$sum": "$total"
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id": 1
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "labels": {
+                "$push": {
+                    "$dateToString": {
+                        "format": "%Y-%m-%dT%H:%M:%S",
+                        "date": "$_id"
+                    }
+                }
+            },
+            "dataset": {
+                "$push": "$totalSum"
+            }
+        }
+    },
+    {
+        "$unset": "_id"
+    }
+]

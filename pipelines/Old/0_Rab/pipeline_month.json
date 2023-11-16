@@ -1,0 +1,41 @@
+[
+    {
+        "$match": {
+            "dt": {
+                "$gte": "datetime(2022, 9, 1, 0, 0, 0, tzinfo=timezone.utc)",
+                "$lte": "datetime(2022, 12, 31, 23, 59, 0, tzinfo=timezone.utc)"
+            }
+        }
+    },
+    {
+        "$group": {
+            "_id": {
+                "month": {
+                    "$month": "$dt"
+                }
+            },
+            "totalSum": {
+                "$sum": "$value"
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id.month": 1
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "labels": {
+                "$push": "$_id.month"
+            },
+            "dataset": {
+                "$push": "$totalSum"
+            }
+        }
+    },
+    {
+        "$unset": "_id"
+    }
+]

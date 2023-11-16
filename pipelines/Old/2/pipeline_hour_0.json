@@ -1,0 +1,47 @@
+[
+    {
+        "$match": {
+            "dt": {
+                "$gte": "datetime(2022, 2, 1, 0, 0, 0, tzinfo=timezone.utc)",
+                "$lte": "datetime(2022, 2, 2, 0, 0, 0, tzinfo=timezone.utc)"
+            }
+        }
+    },
+    {
+        "$addFields": {
+            "start_Date": "datetime(2022, 2, 1, 0, 0, 0, tzinfo=timezone.utc)",
+            "end_Date": "datetime(2022, 2, 2, 0, 0, 0, tzinfo=timezone.utc)"
+        }
+    },
+    {
+        "$group": {
+            "_id": {
+                "hour": {
+                    "$hour": "$dt"
+                }
+            },
+            "totalSum": {
+                "$sum": "$value"
+            }
+        }
+    },
+    {
+        "$sort": {
+            "_id.hour": 1
+        }
+    },
+    {
+        "$group": {
+            "_id": null,
+            "labels": {
+                "$push": "$_id.hour"
+            },
+            "dataset": {
+                "$push": "$totalSum"
+            }
+        }
+    },
+    {
+        "$unset": "_id"
+    }
+]
